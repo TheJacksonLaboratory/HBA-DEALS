@@ -1,0 +1,22 @@
+Package: hbadeals
+Type: Package
+Title: Hierarchical Bayesian Analysis of Differential Expression and ALternative SPlicing (HBA-DEALS)
+Version: 0.99.0
+Author: Guy Karlebach and Peter N Robinson
+Maintainer: Guy karlebach <karleg@jax.org>
+Description: HBA-DEALS takes as input a matrix where the first column gives the gene name, the second the
+              transcript name and the rest of the columns are transcriopt counts, and predict the probbability
+              of differntial expression for each gene and differential transcript proportion for each transcript.
+License: GPL (>=2)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.0.0
+Imports: limma, parallel,coda,rstan
+Depends: Rcpp
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+biocViews: Bayesian
+URL: https://github.com/TheJacksonLaboratory/HBA-DEALS
+BugReports: https://github.com/TheJacksonLaboratory/HBA-DEALS/issues
+NeedsCompilation: no
+Packaged: 2019-11-15 16:39:25 UTC; karleg

@@ -1,0 +1,9 @@
+exportPattern("^[[:alpha:]]+")
+import(rstan, except=c(traceplot))
+import(limma)
+import(coda)
+import(parallel)
+importFrom(Rcpp, sourceCpp)
+importFrom("stats", "approxfun", "lowess", "model.matrix", "rchisq","rgamma", "rnorm", "rpois")
+importFrom("utils", "write.table")
+
