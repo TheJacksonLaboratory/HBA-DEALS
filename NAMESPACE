@@ -4,6 +4,6 @@ import(limma)
 import(coda)
 import(parallel)
 importFrom(Rcpp, sourceCpp)
-importFrom("stats", "approxfun", "lowess", "model.matrix", "rchisq","rgamma", "rnorm", "rpois")
+importFrom("stats", "approxfun", "lowess", "model.matrix", "rchisq","rgamma", "rnorm", "rpois","gtools","cmatrixStats")
 importFrom("utils", "write.table")
 
