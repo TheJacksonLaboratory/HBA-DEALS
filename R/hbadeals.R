@@ -1,7 +1,7 @@
 library(coda)
 library(limma)
 library(rstan)
-
+library(matrixStats)
 getvar=function (counts, design, lib.size = NULL, normalize.method = "none")
 {
 
@@ -42,8 +42,12 @@ getvar=function (counts, design, lib.size = NULL, normalize.method = "none")
 }
 
 
+norm.to.frac=function(v){c((exp(v))/(sum(exp(v))+1),1/(sum(exp(v))+1))}
 
-hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000)
+frac.to.norm=function(v){log(v[1:(length(v)-1)]/v[length(v)])}
+
+
+hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=1000,mcmc.warmup=500)
 {
   if (sum(labels!=labels[order(labels)])>0) {print('Error: The samples are not ordered!');return(NULL)}
   labels=factor(labels)
@@ -51,65 +55,93 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
   summed.counts=do.call(rbind,lapply(split(countsData[,3:ncol(countsData)],countsData[,1]),function(m){colSums(m)}))
   summed.counts=summed.counts[order(match(rownames(summed.counts),as.character(countsData[,1]))),]
 
-  iso.data=getvar(countsData[3:ncol(countsData)],design)
-  gene.data=getvar(summed.counts,lib.size=colSums(summed.counts),design)
+  iso.data=get.var(countsData[3:ncol(countsData)],design)
+  gene.data=get.var(summed.counts,lib.size=colSums(summed.counts),design)
 
   modelString = "
   data {
     int<lower=0> Nisoforms;
     int<lower=0> Ncondition1;
     int<lower=0> Ncondition2;
-    real mean_controls;
+    real exp_mean_controls;
     real<lower=0> sd_exp[Ncondition1+Ncondition2];
     real<lower=0> sd_iso[Nisoforms,Ncondition1+Ncondition2];
     real counts[Nisoforms,Ncondition1+Ncondition2];
+    real normed_frac_means[Nisoforms-1];
+    real normed_frac_sds1[Nisoforms-1];
+    real normed_frac_sds2[Nisoforms-1];
   }
 
   parameters {
-    simplex[Nisoforms] frac;
+
+    matrix [Nisoforms-1,Ncondition1+Ncondition2] normed_fracs;
     real expression[Ncondition1+Ncondition2];
     real beta;
     real intercept;
-    simplex[Nisoforms] alpha;
+    real alpha[Nisoforms-1];
+  }
+
+  transformed parameters{
+
+    simplex[Nisoforms] fracs[Ncondition1+Ncondition2];
+
+    for (j in 1:(Ncondition1+Ncondition2))
+    {
+      real summed_expo=0;
+
+      for (i in 1:(Nisoforms-1))
+
+         summed_expo+=exp(normed_fracs[i,j]);
+
+      for (i in 1:(Nisoforms-1))
+
+         fracs[j,i]=(exp(normed_fracs[i,j]))/(summed_expo+1);
+
+      fracs[j,Nisoforms]=1/(summed_expo+1);
+    }
+
   }
 
   model {
 
-    vector[Nisoforms] dweights;
+    for (j in 1:(Nisoforms-1))
 
-    real Z=0;
-
-    for ( i in 1:Nisoforms )
-    {
-       dweights[i]=1;
-
-       Z=Z+frac[i]*alpha[i];
-    }
-
-    frac ~ dirichlet(dweights);
-
-    alpha ~ dirichlet(dweights);
+       alpha[j] ~ normal(0,5);
 
     beta ~ normal(0,5);
 
-    intercept ~ normal(mean_controls,5);
+    for (j in 1:(Nisoforms-1))
+
+      for ( i in 1:(Ncondition1+Ncondition2) )
+      {
+        if (i<=Ncondition1)
+
+            normed_fracs[j,i] ~ normal(normed_frac_means[j],normed_frac_sds1[j]);
+
+        else
+
+            normed_fracs[j,i] ~ normal(normed_frac_means[j]+alpha[j],normed_frac_sds2[j]);
+
+      }
+
+    intercept ~ normal(exp_mean_controls,5);
 
     for ( i in 1:(Ncondition1+Ncondition2) )
+
       if (i<=Ncondition1)
-          expression[i] ~ normal(intercept,sd_exp[i]);
-      else
-          expression[i] ~ normal(intercept+beta,sd_exp[i]);
+
+         expression[i] ~ normal(intercept,sd_exp[i]);
+
+       else
+
+         expression[i] ~ normal(intercept+beta,sd_exp[i]);
 
     for ( j in 1:Nisoforms )
-    {
-        for ( i in 1:Ncondition1 )
 
-           counts[j,i] ~ normal(log2(frac[j])+expression[i],sd_iso[j,i]);
+      for ( i in 1:(Ncondition1+Ncondition2) )
 
-        for ( i in (Ncondition1+1):(Ncondition1+Ncondition2) )
+        counts[j,i] ~ normal(log2(fracs[i,j])+expression[i],sd_iso[j,i]);
 
-           counts[j,i] ~ normal(log2((frac[j]*alpha[j])/Z)+expression[i],sd_iso[j,i]);
-    }
   }
   "
 
@@ -123,11 +155,43 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     gene.rows=which(countsData[,1] == unique(countsData[,1])[gene.number])
 
+    m.frac=t(t(2^tab[gene.rows,])/colSums(2^tab[gene.rows,]))
+
+    m.norm=apply(m.frac,2,frac.to.norm)
+
+    if (length(gene.rows)==2)
+
+      m.norm=matrix(m.norm,nrow=1)
+
+    if (length(gene.rows)>2)
+    {
+      normed.frac.means=array(rowMeans(m.norm[,labels==1]),dim=length(gene.rows)-1)
+
+      normed.frac.sds1=array(rowSds(m.norm[,labels==1]),dim=length(gene.rows)-1)
+
+      normed.frac.sds2=array(rowSds(m.norm[,labels==2]),dim=length(gene.rows)-1)
+    }else{
+
+      normed.frac.means=array(mean(m.norm[1,labels==1]),dim=1)
+
+      normed.frac.sds1=array(sd(m.norm[1,labels==1]),dim=1)
+
+      normed.frac.sds2=array(sd(m.norm[1,labels==2]),dim=1)
+
+    }
+
+    normed.frac.sds1[normed.frac.sds1==0]=10^-3
+
+    normed.frac.sds2[normed.frac.sds2==0]=10^-3
+
     initf = function() {
-      list(frac = rowSums(2^tab[gene.rows,])/sum(rowSums(2^tab[gene.rows,])),
+      list(
            expression=summed.counts[gene.number,],
-           alpha=array(rep(1/length(gene.rows),length(gene.rows)),dim=length(gene.rows)),
-           beta=0,intercept=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5))
+           intercept=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5),
+           normed_fracs=m.norm,
+           alpha=array(rep(0,length(gene.rows)-1),dim=length(gene.rows)-1),
+           beta=0
+           )
     }
 
     res=matrix(ncol=4,nrow=0)
@@ -139,12 +203,16 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
       Nisoforms = length(gene.rows),
       Ncondition1 = sum(labels==1),
       Ncondition2 = sum(labels==2),
-      mean_controls=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5),
+      exp_mean_controls=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5),
       sd_exp=sqrt(gene.data[[2]][gene.number,]),
-      sd_iso=sqrt(iso.data[[2]][gene.rows,])
+      sd_iso=sqrt(iso.data[[2]][gene.rows,]),
+      normed_frac_means=normed.frac.means,
+      normed_frac_sds1=normed.frac.sds1,
+      normed_frac_sds2=normed.frac.sds2
     )
 
-    stanFit = sampling( object=stan.mod , data = dataList,cores=1 ,init=initf, chains = 1,refresh=0 ,iter = mcmc.warmup+mcmc.iter,warmup=mcmc.warmup , thin = 1 )
+    stanFit = sampling( object=stan.mod , data = dataList,cores=1 ,init=initf, chains = 1,refresh=0 ,iter = mcmc.warmup+mcmc.iter,warmup=mcmc.warmup,
+                        thin = 1 ,pars=c('fracs','beta','alpha'))
 
     mcmcCoda = mcmc.list( lapply( 1:ncol(stanFit) , function(x) { mcmc(as.array(stanFit)[,x,]) } ) )
 
@@ -164,46 +232,59 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     res=rbind(res,c(as.character(unique(countsData[,1])[gene.number]),'Expression',fc.de,expression.p))
 
-    frac=rep(0,length(gene.rows))
+    mean.fracs.control=matrix(ncol=length(gene.rows),nrow=0)
 
-    alpha=rep(0,length(gene.rows))
+    frac.cols.control=which(grepl(paste0('fracs\\[[',paste(which(labels==1),collapse=','),'],[0-9]*\\]'),colnames(mcmcCoda[[1]])))
+
+    alpha=matrix(ncol=length(gene.rows)-1,nrow=0)
+
+    alpha.cols=which(grepl('alpha\\[',colnames(mcmcCoda[[1]])))
+
+    for (i in (1:nrow(mcmcCoda[[1]])))
+    {
+      mean.on=unlist(lapply(1:length(gene.rows),rep,sum(labels==1)))
+
+      mean.fracs.control=rbind(mean.fracs.control,unlist(lapply(1:(length(gene.rows)),function(i,v,l){mean(v[l==i])},mcmcCoda[[1]][i,frac.cols.control],mean.on)))
+
+      alpha=rbind(alpha,mcmcCoda[[1]][i,alpha.cols])
+    }
+    #compare to alpha[i]:
+    if (length(gene.rows)>2)
+    {
+      uni.val=log(sum(colMeans(mean.fracs.control[,1:(length(gene.rows)-1)])*exp(colMeans(alpha)))+mean(mean.fracs.control[,length(gene.rows)]))
+    }else{
+      uni.val=log(sum(mean(mean.fracs.control[,1:(length(gene.rows)-1)])*exp(mean(alpha)))+mean(mean.fracs.control[,length(gene.rows)]))
+    }
+
+    mean.for.last=mean(rowSums(mean.fracs.control[,1:(length(gene.rows)-1)]*exp(alpha)))  #compare to 1-mean.fracs.control[,length(gene.rows)]
+
+    last.uni.val=mean(1-mean.fracs.control[,length(gene.rows)])
 
     alpha.p=rep(0,length(gene.rows))
 
     for (i in (1:length(gene.rows)))
     {
-
-      next.frac.col=which(colnames(mcmcCoda[[1]])==paste0('frac[',i,']'))
-
-      frac[i]=mean(mcmcCoda[[1]][,next.frac.col])
-
-      next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
-
-      alpha[i]=mean(mcmcCoda[[1]][,next.alpha.col])
-    }
-
-    if (isoform.level){
-      uni.val=sum(frac*alpha)
-    }else{
-      uni.val=1/length(gene.rows)
-    }
-    for (i in (1:length(gene.rows)))
-    {
-
-      next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
-
-      if (alpha[i]>uni.val)
+      if (i<length(gene.rows))
       {
-        alpha.p[i]=sum(mcmcCoda[[1]][,next.alpha.col]<uni.val)/mcmc.iter
+        if (mean(alpha[,i])>uni.val)
+        {
+          alpha.p[i]=sum(alpha[,i]<uni.val)/mcmc.iter
+        }else{
+          alpha.p[i]=sum(alpha[,i]>uni.val)/mcmc.iter
+        }
       }else{
-        alpha.p[i]=sum(mcmcCoda[[1]][,next.alpha.col]>uni.val)/mcmc.iter
+        if (mean.for.last>last.uni.val)
+        {
+          alpha.p[i]=sum(rowSums(mean.fracs.control[,1:(length(gene.rows)-1)]*exp(alpha))<last.uni.val)/mcmc.iter
+        }else{
+          alpha.p[i]=sum(rowSums(mean.fracs.control[,1:(length(gene.rows)-1)]*exp(alpha))>last.uni.val)/mcmc.iter
+        }
       }
-
     }
 
-    frac.2=(frac*alpha)/sum(frac*alpha)
+    frac.2=(mean.fracs.controls*exp(alpha))/sum(mean.fracs.controls*exp(alpha))
 
-    fc.ds=frac.2/frac
+    fc.ds=frac.2/mean.fracs.controls
 
     if (isoform.level)
     {

@@ -57,28 +57,22 @@ simulate<-function(ngenes=10000,invChisq=TRUE,fc=2,equal=TRUE,n1=4,n2=4,base.lib
 
   mu <- matrix(rgamma(ngenes*nlibs,shape=shape,scale=scale),ngenes,nlibs)
 
-  split.row<-function(gene.vec,is.control,num.iso,ds) #Apply it to mu, record gene ids
+  split.row<-function(gene.vec,is.control,num.iso,ds,n1) #Apply it to mu, record gene ids
   {
-    frac<-abs(rnorm(num.iso))
-    frac<-frac/sum(frac)
+    mean.frac<-as.numeric(gtools::rdirichlet(n=1,alpha=rep(2,num.iso)))
 
     if (ds==FALSE){
 
-      new.rows<-matrix(rep(gene.vec,num.iso),byrow = TRUE,nrow=num.iso)*frac
+      new.rows<-matrix(rep(gene.vec,num.iso),byrow = TRUE,nrow=num.iso)*t(gtools::rdirichlet(n=n1+n2,alpha=mean.frac*1000))
       ds.isoforms<-rep(1,num.iso)
 
     }else{
-      num.diff.up<-sample(1:(num.iso-1),1)
-      ds.up<-sample(c(rep(TRUE,num.diff.up),rep(FALSE,num.iso-num.diff.up)),num.iso)
-      num.diff.down<-sample(1:sum(!ds.up),1)
-      ds.down<-rep(FALSE,num.iso)
-      if (sum(!ds.up)==1){ds.down[which(!ds.up)]=TRUE}else{ds.down[sample(which(!ds.up),num.diff.down)]<-TRUE}
-      frac.case<-frac
-      frac.case[ds.up]<-frac.case[ds.up]+sum(frac.case[ds.down]/2)/num.diff.up
-      frac.case[ds.down]<-frac.case[ds.down]-frac.case[ds.down]/2
+      frac=t(gtools::rdirichlet(n=n1,alpha=mean.frac*1000))
+      alp<-as.numeric(gtools::rdirichlet(n=1,alpha=rep(1,num.iso)))
+      frac.case=t(gtools::rdirichlet(n=n2,alpha=(mean.frac*alp/sum(mean.frac*alp))*1000))
       new.rows<-cbind(matrix(rep(gene.vec[is.control],num.iso),byrow = TRUE,nrow=num.iso)*frac,matrix(rep(gene.vec[!is.control],num.iso),byrow = TRUE,nrow=num.iso)*frac.case)
-      ds.isoforms<-frac.case/frac
-      ds.isoforms[!(ds.up | ds.down)]<-1
+      ds.isoforms<-rowMeans(new.rows[,(n1+1):(n1+n2)])/rowMeans(new.rows[,1:n1])
+      ds.isoforms[alp==(1/num.iso)]<-1
     }
 
     return(list(new.rows,ds.isoforms))
@@ -91,7 +85,7 @@ simulate<-function(ngenes=10000,invChisq=TRUE,fc=2,equal=TRUE,n1=4,n2=4,base.lib
   for (i in (1:ngenes))
   {
 
-    split.res<-split.row(mu[i,],c(rep(TRUE,n1),rep(FALSE,n2)),num.isoforms[i],ds[i])
+    split.res<-split.row(mu[i,],c(rep(TRUE,n1),rep(FALSE,n2)),num.isoforms[i],ds[i],n1)
 
     new.mu<-rbind(new.mu,split.res[[1]])
 
