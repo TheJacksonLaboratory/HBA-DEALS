@@ -282,9 +282,7 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
       }
     }
 
-    frac.2=(mean.fracs.controls*exp(alpha))/sum(mean.fracs.controls*exp(alpha))
-
-    fc.ds=frac.2/mean.fracs.controls
+    fc.ds=norm.to.frac(frac.to.norm(colMeans(mean.fracs.control))+colMeans(alpha))/colMeans(mean.fracs.control)
 
     if (isoform.level)
     {
