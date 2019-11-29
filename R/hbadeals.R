@@ -234,7 +234,11 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     mean.fracs.control=matrix(ncol=length(gene.rows),nrow=0)
 
-    frac.cols.control=which(grepl(paste0('fracs\\[[',paste(which(labels==1),collapse=','),'],[0-9]*\\]'),colnames(mcmcCoda[[1]])))
+    frac.cols.control=c()
+
+    for (i in (1:sum(labels==1)))
+
+       frac.cols.control=c(frac.cols.control,which(grepl(paste0('fracs\\[',i,',[0-9]*\\]'),colnames(mcmcCoda[[1]]))))
 
     alpha=matrix(ncol=length(gene.rows)-1,nrow=0)
 
