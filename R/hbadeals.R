@@ -246,7 +246,7 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     for (i in (1:nrow(mcmcCoda[[1]])))
     {
-      mean.on=unlist(lapply(1:length(gene.rows),rep,sum(labels==1)))
+      mean.on=unlist(rep(1:length(gene.rows),sum(labels==1)))
 
       mean.fracs.control=rbind(mean.fracs.control,unlist(lapply(1:(length(gene.rows)),function(i,v,l){mean(v[l==i])},mcmcCoda[[1]][i,frac.cols.control],mean.on)))
 
