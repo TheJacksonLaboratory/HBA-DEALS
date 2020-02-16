@@ -1,5 +1,5 @@
 ##############################################################################################
-Hierarchical Bayesian Analysis of Differential Expression and ALternative SPlicing (HBA-DEALS)
+Hierarchical Bayesian Analysis of Differential Expression and ALternative Splicing (HBA-DEALS)
 ##############################################################################################
 
 HBA-DEALS is an R package that simultaneously characterizes differential gene expression and 
