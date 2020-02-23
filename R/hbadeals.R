@@ -60,56 +60,44 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
     int<lower=0> Ncondition1;
     int<lower=0> Ncondition2;
     real mean_controls;
-    real<lower=0> sd_exp[Ncondition1+Ncondition2];
-    real<lower=0> sd_iso[Nisoforms,Ncondition1+Ncondition2];
-    real counts[Nisoforms,Ncondition1+Ncondition2];
-  }
+    vector[Ncondition1] sd_exp_controls;
+    vector[Ncondition2] sd_exp_cases;
+    vector[Nisoforms] sd_iso_cases[Ncondition2];
+    vector[Nisoforms] sd_iso_controls[Ncondition1];
+    vector[Nisoforms] counts_cases[Ncondition2];
+    vector[Nisoforms] counts_controls[Ncondition1];
+    }
 
   parameters {
     simplex[Nisoforms] frac;
-    real expression[Ncondition1+Ncondition2];
+    vector[Ncondition1] expression_controls;
+    vector[Ncondition2] expression_cases;
     real beta;
     real intercept;
     simplex[Nisoforms] alpha;
-  }
+    }
 
   model {
 
-    vector[Nisoforms] dweights;
+      frac ~ dirichlet(rep_vector(1.0,Nisoforms));
 
-    real Z=0;
+      alpha ~ dirichlet(rep_vector(1.0,Nisoforms));
 
-    for ( i in 1:Nisoforms )
-    {
-       dweights[i]=1;
+      beta ~ normal(0,5);
 
-       Z=Z+frac[i]*alpha[i];
-    }
+      intercept ~ normal(mean_controls,5);
 
-    frac ~ dirichlet(dweights);
+      expression_controls ~ normal(intercept,sd_exp_controls);
 
-    alpha ~ dirichlet(dweights);
+      expression_cases ~ normal(intercept+beta,sd_exp_cases);
 
-    beta ~ normal(0,5);
+      for ( j in 1:Nisoforms )
+      {
+          counts_controls[,j] ~ normal(log2(frac[j])+expression_controls,sd_iso_controls[,j]);
 
-    intercept ~ normal(mean_controls,5);
+          counts_cases[,j] ~ normal(log2((frac[j]*alpha[j])/dot_product(frac,alpha))+expression_cases,sd_iso_cases[,j]);
+      }
 
-    for ( i in 1:(Ncondition1+Ncondition2) )
-      if (i<=Ncondition1)
-          expression[i] ~ normal(intercept,sd_exp[i]);
-      else
-          expression[i] ~ normal(intercept+beta,sd_exp[i]);
-
-    for ( j in 1:Nisoforms )
-    {
-        for ( i in 1:Ncondition1 )
-
-           counts[j,i] ~ normal(log2(frac[j])+expression[i],sd_iso[j,i]);
-
-        for ( i in (Ncondition1+1):(Ncondition1+Ncondition2) )
-
-           counts[j,i] ~ normal(log2((frac[j]*alpha[j])/Z)+expression[i],sd_iso[j,i]);
-    }
   }
   "
 
@@ -125,7 +113,8 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     initf = function() {
       list(frac = rowSums(2^tab[gene.rows,])/sum(rowSums(2^tab[gene.rows,])),
-           expression=summed.counts[gene.number,],
+           expression_cases=summed.counts[gene.number,labels==2],
+           expression_controls=summed.counts[gene.number,labels==1],
            alpha=array(rep(1/length(gene.rows),length(gene.rows)),dim=length(gene.rows)),
            beta=0,intercept=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5))
     }
@@ -135,13 +124,17 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
     colnames(res)=c('Gene','Isoform','ExplogFC/FC','P')
 
     dataList = list(
-      counts = tab[gene.rows,] ,
+      counts_cases = t(tab[gene.rows,labels==2]),
+      counts_controls = t(tab[gene.rows,labels==1]),
       Nisoforms = length(gene.rows),
       Ncondition1 = sum(labels==1),
       Ncondition2 = sum(labels==2),
       mean_controls=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5),
-      sd_exp=sqrt(gene.data[[2]][gene.number,]),
-      sd_iso=sqrt(iso.data[[2]][gene.rows,])
+      sd_iso_cases=t(sqrt(iso.data[[2]][gene.rows,labels==2])),
+      sd_iso_controls=t(sqrt(iso.data[[2]][gene.rows,labels==1])),
+      sd_exp_cases=sqrt(gene.data[[2]][gene.number,labels==2]),
+      sd_exp_controls=sqrt(gene.data[[2]][gene.number,labels==1])
+
     )
 
     stanFit = sampling( object=stan.mod , data = dataList,cores=1 ,init=initf, chains = 1,refresh=0 ,iter = mcmc.warmup+mcmc.iter,warmup=mcmc.warmup , thin = 1 )
