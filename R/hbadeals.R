@@ -110,12 +110,14 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
   results.tab=do.call(rbind,mclapply(1:length(unique(countsData[,1])),function(gene.number){
 
     gene.rows=which(countsData[,1] == unique(countsData[,1])[gene.number])
+    
+    num.isoforms=length(gene.rows)
 
     initf = function() {
       list(frac = rowSums(2^tab[gene.rows,])/sum(rowSums(2^tab[gene.rows,])),
            expression_cases=summed.counts[gene.number,labels==2],
            expression_controls=summed.counts[gene.number,labels==1],
-           alpha=array(rep(1/length(gene.rows),length(gene.rows)),dim=length(gene.rows)),
+           alpha=array(rep(1/num.isoforms,num.isoforms),dim=num.isoforms),
            beta=0,intercept=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5))
     }
 
@@ -126,7 +128,7 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
     dataList = list(
       counts_cases = t(tab[gene.rows,labels==2]),
       counts_controls = t(tab[gene.rows,labels==1]),
-      Nisoforms = length(gene.rows),
+      Nisoforms = num.isoforms,
       Ncondition1 = sum(labels==1),
       Ncondition2 = sum(labels==2),
       mean_controls=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5),
@@ -137,7 +139,8 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     )
 
-    stanFit = sampling( object=stan.mod , data = dataList,cores=1 ,init=initf, chains = 1,refresh=0 ,iter = mcmc.warmup+mcmc.iter,warmup=mcmc.warmup , thin = 1 )
+    stanFit = sampling( object=stan.mod , data = dataList,cores=1 ,init=initf, chains = 1,refresh=0 ,
+                        iter = mcmc.warmup+mcmc.iter,warmup=mcmc.warmup , thin = 1 )
 
     mcmcCoda = mcmc.list( lapply( 1:ncol(stanFit) , function(x) { mcmc(as.array(stanFit)[,x,]) } ) )
 
@@ -152,18 +155,18 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
       expression.p=sum(mcmcCoda[[1]][,beta.col]>0)/mcmc.iter
     }
+    
+    gene.name=as.character(unique(countsData[,1])[gene.number])
 
-    fc.de=mean.de
+    res=rbind(res,c(gene.name,'Expression',mean.de,expression.p))
 
-    res=rbind(res,c(as.character(unique(countsData[,1])[gene.number]),'Expression',fc.de,expression.p))
+    frac=rep(0,num.isoforms)
 
-    frac=rep(0,length(gene.rows))
+    alpha=rep(0,num.isoforms)
 
-    alpha=rep(0,length(gene.rows))
+    alpha.p=rep(0,num.isoforms)
 
-    alpha.p=rep(0,length(gene.rows))
-
-    for (i in (1:length(gene.rows)))
+    for (i in (1:num.isoforms))
     {
 
       next.frac.col=which(colnames(mcmcCoda[[1]])==paste0('frac[',i,']'))
@@ -178,9 +181,9 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
     if (isoform.level){
       uni.val=sum(frac*alpha)
     }else{
-      uni.val=1/length(gene.rows)
+      uni.val=1/num.isoforms
     }
-    for (i in (1:length(gene.rows)))
+    for (i in (1:num.isoforms))
     {
 
       next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
@@ -193,6 +196,7 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
       }
 
     }
+    
 
     frac.2=(frac*alpha)/sum(frac*alpha)
 
@@ -200,11 +204,11 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     if (isoform.level)
     {
-      for (i in (1:length(gene.rows)))
+      for (i in (1:num.isoforms))
 
-        res=rbind(res,c(as.character(unique(countsData[,1])[gene.number]),as.character(countsData[gene.rows[i],2]),fc.ds[i],alpha.p[i]))
+        res=rbind(res,c(gene.name,as.character(countsData[gene.rows[i],2]),fc.ds[i],alpha.p[i]))
     }else{
-        res=rbind(res,c(as.character(unique(countsData[,1])[gene.number]),'Splicing',fc.ds[which(alpha.p==min(alpha.p))[1]],min(alpha.p)))
+        res=rbind(res,c(gene.name,'Splicing',fc.ds[which(alpha.p==min(alpha.p))[1]],min(alpha.p)))
     }
     return(res)
   },mc.cores = n.cores))
