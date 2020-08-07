@@ -1,6 +1,7 @@
 library(coda)
 library(limma)
 library(rstan)
+library(bayestestR)
 
 getvar=function (counts, design, lib.size = NULL, normalize.method = "none")
 {
@@ -43,7 +44,7 @@ getvar=function (counts, design, lib.size = NULL, normalize.method = "none")
 
 
 
-hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000)
+hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,lib.size=NULL)
 {
   if (sum(labels!=labels[order(labels)])>0) {print('Error: The samples are not ordered!');return(NULL)}
   labels=factor(labels)
@@ -51,8 +52,8 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
   summed.counts=do.call(rbind,lapply(split(countsData[,3:ncol(countsData)],countsData[,1]),function(m){colSums(m)}))
   summed.counts=summed.counts[order(match(rownames(summed.counts),as.character(countsData[,1]))),]
 
-  iso.data=getvar(countsData[3:ncol(countsData)],design)
-  gene.data=getvar(summed.counts,lib.size=colSums(summed.counts),design)
+  iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
+  gene.data=getvar(summed.counts,design,lib.size)
 
   modelString = "
   data {
@@ -148,14 +149,8 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
     mean.de=mean(mcmcCoda[[1]][,beta.col])
 
-    if (mean.de>0)
-    {
-      expression.p=sum(mcmcCoda[[1]][,beta.col]<0)/mcmc.iter
-    }else{
-
-      expression.p=sum(mcmcCoda[[1]][,beta.col]>0)/mcmc.iter
-    }
-    
+    expression.p=p_rope(as.numeric(mcmcCoda[[1]][,beta.col]),method='KernSmooth' ,range = c(-0.1, 0.1))$p_ROPE
+  
     gene.name=as.character(unique(countsData[,1])[gene.number])
 
     res=rbind(res,c(gene.name,'Expression',mean.de,expression.p))
@@ -188,16 +183,9 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
       next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
 
-      if (alpha[i]>uni.val)
-      {
-        alpha.p[i]=sum(mcmcCoda[[1]][,next.alpha.col]<uni.val)/mcmc.iter
-      }else{
-        alpha.p[i]=sum(mcmcCoda[[1]][,next.alpha.col]>uni.val)/mcmc.iter
-      }
-
+      alpha.p[i]=p_rope(as.numeric(mcmcCoda[[1]][,next.alpha.col])-uni.val,method='KernSmooth',range = c(-0.1*uni.val,0.1*uni.val))$p_ROPE
     }
-    
-
+  
     frac.2=(frac*alpha)/sum(frac*alpha)
 
     fc.ds=frac.2/frac
@@ -208,12 +196,187 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
 
         res=rbind(res,c(gene.name,as.character(countsData[gene.rows[i],2]),fc.ds[i],alpha.p[i]))
     }else{
-        res=rbind(res,c(gene.name,'Splicing',fc.ds[which(alpha.p==min(alpha.p))[1]],min(alpha.p)))
+        min.p=min(alpha.p)
+        res=rbind(res,c(gene.name,'Splicing',fc.ds[which(alpha.p==min(alpha.p))[1]],min.p))
     }
     return(res)
   },mc.cores = n.cores))
 
   return(results.tab)
+
+}
+
+hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,lib.size=NULL)
+{
+    if (sum(labels!=labels[order(labels)])>0) {print('Error: The samples are not ordered!');return(NULL)}
+    labels=factor(labels)
+    design=model.matrix(~group,data.frame(group=labels))
+    summed.counts=do.call(rbind,lapply(split(countsData[,3:ncol(countsData)],countsData[,1]),function(m){colSums(m)}))
+    summed.counts=summed.counts[order(match(rownames(summed.counts),as.character(countsData[,1]))),]
+    
+    iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
+    gene.data=getvar(summed.counts,design,lib.size)
+    
+    modelString = "
+    data {
+        int<lower=0> Nisoforms;
+        int<lower=0> Ncondition1;
+        int<lower=0> Ncondition2;
+        real mean_controls;
+        vector[Nisoforms] sd_iso_cases[Ncondition2];
+        vector[Nisoforms] sd_iso_controls[Ncondition1];
+        vector[Nisoforms] counts_cases[Ncondition2];
+        vector[Nisoforms] counts_controls[Ncondition1];
+    }
+    
+    parameters {
+        simplex[Nisoforms] frac;
+        real beta;
+        real intercept;
+        simplex[Nisoforms] alpha;
+    }
+    
+    model {
+        
+        frac ~ dirichlet(rep_vector(1.0,Nisoforms));
+        
+        alpha ~ dirichlet(rep_vector(1.0,Nisoforms));
+        
+        beta ~ normal(0,5);
+        
+        intercept ~ normal(mean_controls,5);
+        
+        for ( j in 1:Nisoforms )
+        {
+            counts_controls[,j] ~ normal(log2(frac[j])+intercept,sd_iso_controls[,j]);
+            
+            counts_cases[,j] ~ normal(log2((frac[j]*alpha[j])/dot_product(frac,alpha))+intercept+beta,sd_iso_cases[,j]);
+        }
+        
+    }
+    "
+    
+    stan.mod = stan_model( model_code=modelString )
+    
+    tab=iso.data[[1]]
+    
+    summed.counts=gene.data[[1]]
+    
+    results.tab=do.call(rbind,mclapply(1:length(unique(countsData[,1])),function(gene.number){
+        
+        gene.rows=which(countsData[,1] == unique(countsData[,1])[gene.number])
+        
+        num.isoforms=length(gene.rows)
+        
+        initf = function() {
+            list(frac = rowSums(2^tab[gene.rows,])/sum(rowSums(2^tab[gene.rows,])),
+            alpha=array(rep(1/num.isoforms,num.isoforms),dim=num.isoforms),
+            beta=0,intercept=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5))
+        }
+        
+        res=matrix(ncol=4,nrow=0)
+        
+        colnames(res)=c('Gene','Isoform','ExplogFC/FC','P')
+        
+        dataList = list(
+        counts_cases = t(tab[gene.rows,labels==2]),
+        counts_controls = t(tab[gene.rows,labels==1]),
+        Nisoforms = num.isoforms,
+        Ncondition1 = sum(labels==1),
+        Ncondition2 = sum(labels==2),
+        mean_controls=log2(mean(2^summed.counts[gene.number,labels==1]-0.5)+0.5),
+        sd_iso_cases=t(sqrt(iso.data[[2]][gene.rows,labels==2])),
+        sd_iso_controls=t(sqrt(iso.data[[2]][gene.rows,labels==1]))
+        
+        )
+        
+        stanFit = sampling( object=stan.mod , data = dataList,cores=1 ,init=initf, chains = 1,refresh=0 ,
+        iter = mcmc.warmup+mcmc.iter,warmup=mcmc.warmup , thin = 1 )
+        
+        mcmcCoda = mcmc.list( lapply( 1:ncol(stanFit) , function(x) { mcmc(as.array(stanFit)[,x,]) } ) )
+        
+        beta.col=which(colnames(mcmcCoda[[1]])=='beta')
+        
+        mean.de=mean(mcmcCoda[[1]][,beta.col])
+        
+        expression.p=p_rope(as.numeric(mcmcCoda[[1]][,beta.col]),method='KernSmooth', range = c(-0.1, 0.1))$p_ROPE
+        
+        gene.name=as.character(unique(countsData[,1])[gene.number])
+        
+        res=rbind(res,c(gene.name,'Expression',mean.de,expression.p))
+        
+        frac=rep(0,num.isoforms)
+        
+        alpha=rep(0,num.isoforms)
+        
+        alpha.p=rep(0,num.isoforms)
+        
+        for (i in (1:num.isoforms))
+        {
+            
+            next.frac.col=which(colnames(mcmcCoda[[1]])==paste0('frac[',i,']'))
+            
+            frac[i]=mean(mcmcCoda[[1]][,next.frac.col])
+            
+            next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
+            
+            alpha[i]=mean(mcmcCoda[[1]][,next.alpha.col])
+        }
+        
+        if (isoform.level){
+            uni.val=sum(frac*alpha)
+        }else{
+            uni.val=1/num.isoforms
+        }
+        for (i in (1:num.isoforms))
+        {
+            
+            next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
+            
+            alpha.p[i]=p_rope(as.numeric(mcmcCoda[[1]][,next.alpha.col])-uni.val,method='KernSmooth',range = c(-0.1*uni.val,0.1*uni.val))$p_ROPE
+            
+        }
+        
+        frac.2=(frac*alpha)/sum(frac*alpha)
+        
+        fc.ds=frac.2/frac
+        
+        if (isoform.level)
+        {
+            for (i in (1:num.isoforms))
+            
+            res=rbind(res,c(gene.name,as.character(countsData[gene.rows[i],2]),fc.ds[i],alpha.p[i]))
+        }else{
+            min.p=min(alpha.p)
+            res=rbind(res,c(gene.name,'Splicing',fc.ds[which(alpha.p==min(alpha.p))[1]],min.p))
+        }
+        return(res)
+    },mc.cores = n.cores))
+    
+    return(results.tab)
+    
+}
+
+hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL)
+{
+        use.heirarchical=TRUE
+
+        if (hierarchy=='auto')
+        {
+            use.heirarchical=choose.model(countsData=countsData,labels=labels,n.cores=n.cores,num.genes=100, mcmc.iter=mcmc.iter, mcmc.warmup=mcmc.warmup,lib.size=lib.size)
+            
+        }else if (hierarchy=='no')
+        {
+           use.heirarchical=FALSE
+            
+        }
+        
+    if (use.heirarchical)
+    
+        return (hbadeals.heirarchy(countsData = countsData,labels = labels,n.cores=n.cores,isoform.level = isoform.level,mcmc.iter=mcmc.iter,mcmc.warmup=mcmc.warmup,lib.size=lib.size))
+    
+    return (hbadeals.flat(countsData = countsData,labels = labels,n.cores=n.cores,isoform.level = isoform.level,mcmc.iter=mcmc.iter,mcmc.warmup=mcmc.warmup,lib.size=lib.size))
+    
 
 }
 
