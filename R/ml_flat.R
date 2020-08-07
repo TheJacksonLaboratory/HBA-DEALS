@@ -54,7 +54,7 @@ ml.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),gene.number
   summed.counts=summed.counts[order(match(rownames(summed.counts),as.character(countsData[,1]))),]
   
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
-  gene.data=getvar(summed.counts,lib.size=colSums(summed.counts),design,lib.size)
+  gene.data=getvar(summed.counts,design,lib.size)
   
   modelString = "
   data {
