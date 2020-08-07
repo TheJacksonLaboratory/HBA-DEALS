@@ -9,7 +9,7 @@ The function determines differential expression and transcript proportions betwe
 and the corresponding transcript counts under every sample in the rest of its columns.  In addition, it takes as input an ordered numeric vector of 1's and 2's, where 1 indicates that the corresponding sample belongs to the first experimental condition and 2 to the second. The function returns a table that provides 1-probability values for differential expression of each gene, and either differential splicing for the gene or differential proportion for each transcript.
 }
 \usage{
-hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter,mcmc.warmup)
+hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -29,17 +29,23 @@ hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter,mcmc.warmup)
   of differential splicing for each gene.
 }
 \item{mcmc.iter}{
-  The number of iterations of the MCMC algorithm after warmup.  The recommended value is the default.
+  The number of iterations of the MCMC algorithm after warmup.
 }
 \item{mcmc.warmup}{
-  The number of warmup iterations of the MCMC algorithm.  The recommended value is the default.
+  The number of warmup iterations of the MCMC algorithm.
+}
+\item{hierarchy}{
+  Determines whether a hierarchical model will be used (hierarchy='yes'), a flat one (hierarchy='no') or will the decision
+  will be made automatically (hierarchy='auto')
+}
+\item{lib.size}{
+  A numeric vector containing total library sizes for each sample. If not provided, the default is  columnwise count totals.
 }
 }
 \value{
 The table returned by this function contains 4 columns.  The first column is the gene name, the second is the transcript name,
 the third is the fold change, and the fourth is 1-probability of differential expression or proportion.  Entries that
-refer to expression have 'Expression' in their second column.  If isoform.level is FALSE, entries that refer to differential splicing of the gene will have 'Splicing' in their second column entry.  The fold change for expression is given as log fold change, and for splicing
-as fold change.
+refer to expression have 'Expression' in their second column.  If isoform.level is FALSE, entries that refer to differential splicing of the gene will have 'Splicing' in their second column entry.  The fold change for expression is given as log2 fold change, and for splicing as fold change.
 }
 \references{
 %% ~put references to the literature/web site here ~
