@@ -55,7 +55,7 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
   
-  theta.vals=theta.heirarchical(countsData,labels,100,lib.size,n.cores)
+  theta.vals=theta.heirarchical(countsData,labels,1000,lib.size,n.cores)
   
   theta_a=theta.vals[[1]]
   
@@ -237,7 +237,7 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
     iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
     gene.data=getvar(summed.counts,design,lib.size)
  
-    theta.vals=theta.flat(countsData,labels,100,lib.size,n.cores)
+    theta.vals=theta.flat(countsData,labels,1000,lib.size,n.cores)
     
     theta_a=theta.vals[[1]]
     
