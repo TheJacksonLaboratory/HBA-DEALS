@@ -9,7 +9,7 @@ The function determines differential expression and transcript proportions betwe
 and the corresponding transcript counts under every sample in the rest of its columns.  In addition, it takes as input an ordered numeric vector of 1's and 2's, where 1 indicates that the corresponding sample belongs to the first experimental condition and 2 to the second. The function returns a table that provides 1-probability values for differential expression of each gene, and either differential splicing for the gene or differential proportion for each transcript.
 }
 \usage{
-hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL)
+hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL,mtc=FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -41,6 +41,10 @@ hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter=3000,mcmc.warmup=4000
 \item{lib.size}{
   A numeric vector containing total library sizes for each sample. If not provided, the default is  columnwise count totals.
 }
+\item{mtc}{
+  A logical argument (default FALSE) that indicates whether the output probabolities should be corrected for multiple testing.
+}
+
 }
 \value{
 The table returned by this function contains 4 columns.  The first column is the gene name, the second is the transcript name,
