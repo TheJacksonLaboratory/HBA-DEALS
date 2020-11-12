@@ -44,7 +44,7 @@ getvar=function (counts, design, lib.size = NULL, normalize.method = "none")
 
 
 
-hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,lib.size=NULL)
+hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,lib.size=NULL,mtc=FALSE)
 {
   if (sum(labels!=labels[order(labels)])>0) {print('Error: The samples are not ordered!');return(NULL)}
   labels=factor(labels)
@@ -54,6 +54,12 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
 
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
+  
+  theta.vals=theta.heirarchical(countsData,labels,100,lib.size,n.cores)
+  
+  theta_a=theta.vals[[1]]
+  
+  theta_b=theta.vals[[2]]
 
   modelString = "
   data {
@@ -78,13 +84,27 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
     simplex[Nisoforms] alpha;
     }
 
-  model {
+  model {"
+  
+  if (mtc)
+  {
+    
+    modelString=paste0(modelString,  "target+=log_sum_exp(log(",theta_b,")+normal_lpdf(beta|0,5),log(",1-theta_b,")+normal_lpdf(beta|0,0.04));\n
+                       
+                                     target+=log_sum_exp(log(",1-theta_a,")+dirichlet_lpdf(alpha|rep_vector(100,Nisoforms)),
+     log(",theta_a,")+dirichlet_lpdf(alpha|rep_vector(1,Nisoforms)));")
+    
+    
+    
+    
+  }else{
+    
+    modelString=paste0(modelString, "alpha ~ dirichlet(rep_vector(1.0,Nisoforms));\nbeta ~ normal(0,5);\n")
+  }
+  
+  modelString=paste0(modelString,"
 
       frac ~ dirichlet(rep_vector(1.0,Nisoforms));
-
-      alpha ~ dirichlet(rep_vector(1.0,Nisoforms));
-
-      beta ~ normal(0,5);
 
       intercept ~ normal(mean_controls,5);
 
@@ -100,7 +120,7 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
       }
 
   }
-  "
+  ")
 
   stan.mod = stan_model( model_code=modelString )
 
@@ -206,7 +226,7 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
 
 }
 
-hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,lib.size=NULL)
+hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,lib.size=NULL,mtc=FALSE)
 {
     if (sum(labels!=labels[order(labels)])>0) {print('Error: The samples are not ordered!');return(NULL)}
     labels=factor(labels)
@@ -216,7 +236,13 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
     
     iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
     gene.data=getvar(summed.counts,design,lib.size)
+ 
+    theta.vals=theta.flat(countsData,labels,100,lib.size,n.cores)
     
+    theta_a=theta.vals[[1]]
+    
+    theta_b=theta.vals[[2]]
+       
     modelString = "
     data {
         int<lower=0> Nisoforms;
@@ -236,14 +262,25 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
         simplex[Nisoforms] alpha;
     }
     
-    model {
+    model {"
+
+    if (mtc)
+    {
+  
+      modelString=paste0(modelString,  "target+=log_sum_exp(log(",theta_b,")+normal_lpdf(beta|0,5),log(",1-theta_b,")+normal_lpdf(beta|0,0.04));\n
+                       
+                     target+=log_sum_exp(log(",1-theta_a,")+dirichlet_lpdf(alpha|rep_vector(100,Nisoforms)),
+     log(",theta_a,")+dirichlet_lpdf(alpha|rep_vector(1,Nisoforms)));")
+      
+    }else{
+      
+      modelString=paste0(modelString, "alpha ~ dirichlet(rep_vector(1.0,Nisoforms));\nbeta ~ normal(0,5);\n")
+    }
+    
+     modelString=paste0(modelString, "
         
         frac ~ dirichlet(rep_vector(1.0,Nisoforms));
-        
-        alpha ~ dirichlet(rep_vector(1.0,Nisoforms));
-        
-        beta ~ normal(0,5);
-        
+      
         intercept ~ normal(mean_controls,5);
         
         for ( j in 1:Nisoforms )
@@ -254,7 +291,7 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
         }
         
     }
-    "
+    ")
     
     stan.mod = stan_model( model_code=modelString )
     
@@ -357,7 +394,7 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
     
 }
 
-hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL)
+hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL,mtc=FALSE,theta_a=0.5,theta_b=0.5)
 {
         use.heirarchical=TRUE
 
@@ -373,9 +410,9 @@ hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.le
         
     if (use.heirarchical)
     
-        return (hbadeals.heirarchy(countsData = countsData,labels = labels,n.cores=n.cores,isoform.level = isoform.level,mcmc.iter=mcmc.iter,mcmc.warmup=mcmc.warmup,lib.size=lib.size))
+        return (hbadeals.heirarchy(countsData = countsData,labels = labels,n.cores=n.cores,isoform.level = isoform.level,mcmc.iter=mcmc.iter,mcmc.warmup=mcmc.warmup,lib.size=lib.size,mtc=mtc))
     
-    return (hbadeals.flat(countsData = countsData,labels = labels,n.cores=n.cores,isoform.level = isoform.level,mcmc.iter=mcmc.iter,mcmc.warmup=mcmc.warmup,lib.size=lib.size))
+    return (hbadeals.flat(countsData = countsData,labels = labels,n.cores=n.cores,isoform.level = isoform.level,mcmc.iter=mcmc.iter,mcmc.warmup=mcmc.warmup,lib.size=lib.size,mtc=mtc))
     
 
 }
