@@ -55,11 +55,14 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
   
-  theta.vals=theta.heirarchical(countsData,labels,1000,lib.size,n.cores)
+  if (mtc)
+  {
+     theta.vals=theta.heirarchical(countsData,labels,1000,lib.size,n.cores)
   
-  theta_a=theta.vals[[1]]
+     theta_a=theta.vals[[1]]
   
-  theta_b=theta.vals[[2]]
+     theta_b=theta.vals[[2]]
+  }
 
   modelString = "
   data {
@@ -91,7 +94,7 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
     
     modelString=paste0(modelString,  "target+=log_sum_exp(log(",theta_b,")+normal_lpdf(beta|0,5),log(",1-theta_b,")+normal_lpdf(beta|0,0.04));\n
                        
-                                     target+=log_sum_exp(log(",1-theta_a,")+dirichlet_lpdf(alpha|rep_vector(100,Nisoforms)),
+                                     target+=log_sum_exp(log(",1-theta_a,")+dirichlet_lpdf(alpha|rep_vector(50,Nisoforms)),
      log(",theta_a,")+dirichlet_lpdf(alpha|rep_vector(1,Nisoforms)));")
     
     
@@ -237,11 +240,14 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
     iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
     gene.data=getvar(summed.counts,design,lib.size)
  
-    theta.vals=theta.flat(countsData,labels,1000,lib.size,n.cores)
+    if (mtc)
+    {
+        theta.vals=theta.flat(countsData,labels,1000,lib.size,n.cores)
     
-    theta_a=theta.vals[[1]]
+        theta_a=theta.vals[[1]]
     
-    theta_b=theta.vals[[2]]
+        theta_b=theta.vals[[2]]
+    }
        
     modelString = "
     data {
@@ -269,7 +275,7 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
   
       modelString=paste0(modelString,  "target+=log_sum_exp(log(",theta_b,")+normal_lpdf(beta|0,5),log(",1-theta_b,")+normal_lpdf(beta|0,0.04));\n
                        
-                     target+=log_sum_exp(log(",1-theta_a,")+dirichlet_lpdf(alpha|rep_vector(100,Nisoforms)),
+                     target+=log_sum_exp(log(",1-theta_a,")+dirichlet_lpdf(alpha|rep_vector(50,Nisoforms)),
      log(",theta_a,")+dirichlet_lpdf(alpha|rep_vector(1,Nisoforms)));")
       
     }else{
@@ -394,7 +400,7 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
     
 }
 
-hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL,mtc=FALSE,theta_a=0.5,theta_b=0.5)
+hbadeals=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isoform.level=FALSE,mcmc.iter=3000,mcmc.warmup=4000,hierarchy='auto',lib.size=NULL,mtc=FALSE)
 {
         use.heirarchical=TRUE
 

@@ -1,3 +1,63 @@
+write.block=function(n.iso)
+{
+  paste0(
+  "
+  idx= gene_to_ds[genes_itr]; 
+
+  target+=dirichlet_lpdf(frac_",n.iso,"[idx]|rep_vector(1,",n.iso,"));
+  
+  target+=log_sum_exp(log(1-theta_a)+dirichlet_lpdf(alpha_",n.iso,"[idx]|rep_vector(50,",n.iso,")),
+  log(theta_a)+dirichlet_lpdf(alpha_",n.iso,"[idx]|rep_vector(1,",n.iso,")));
+
+  l=1;
+
+  for (j in first_i:last_i)
+  {
+
+  target+=normal_lpdf(counts_controls[,j] | log2(frac_",n.iso,"[idx][l])+intercept[genes_itr],sd_iso_controls[,j]);
+  
+  target+=normal_lpdf(counts_cases[,j] | log2((frac_",n.iso,"[idx][l]*alpha_",n.iso,"[idx][l])/dot_product(frac_",n.iso,"[idx],alpha_",n.iso,"[idx]))+intercept[genes_itr]+beta[genes_itr],sd_iso_cases[,j]);
+
+  l=l+1;
+  }
+  
+
+")
+}
+
+
+write.block2=function(n.iso)
+{
+  
+  paste0(
+  
+  "
+  idx= gene_to_ds[genes_itr];
+
+  target+=dirichlet_lpdf(frac_",n.iso,"[idx]|rep_vector(1,Nisoforms[genes_itr]));
+  
+  target+=log_sum_exp(log(1-theta_a)+dirichlet_lpdf(alpha_",n.iso,"[idx]|rep_vector(50,Nisoforms[genes_itr])),
+  log(theta_a)+dirichlet_lpdf(alpha_",n.iso,"[idx]|rep_vector(1,Nisoforms[genes_itr])));
+  
+  expression_controls[genes_itr,] ~ normal(intercept[genes_itr],sd_exp_controls[genes_itr,]);
+  
+  expression_cases[genes_itr,] ~ normal(intercept[genes_itr]+beta[genes_itr],sd_exp_cases[genes_itr,]);
+
+  l=1;
+  
+  for (j in first_i:last_i)
+  {
+      target+=normal_lpdf(counts_controls[,j] | log2(frac_",n.iso,"[idx][l])+expression_controls[genes_itr,],sd_iso_controls[,j]);
+  
+      target+=normal_lpdf(counts_cases[,j] | log2((frac_",n.iso,"[idx][l]*alpha_",n.iso,"[idx][l])/dot_product(frac_",n.iso,"[idx],alpha_",n.iso,"[idx]))+expression_cases[genes_itr,],sd_iso_cases[,j]);
+    
+      l=l+1;
+  }
+  
+")
+  
+}
+
 
 
 theta.flat=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=getOption("mc.cores", 2L))
@@ -11,12 +71,14 @@ theta.flat=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=getOptio
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
   
-  modelString="data {
+  isoform.numbers=table(table(countsData$V1))
+  
+  modelString=paste0("data {
   int<lower=0> Ngenes;
   int<lower=0> Ntranscripts;
   int<lower=0> Ncondition1;
   int<lower=0> Ncondition2;
-  int<lower=0> Nisoforms[Ngenes];
+  int<lower=2> Nisoforms[Ngenes];
   real mean_controls[Ngenes];
   matrix[Ncondition2,Ntranscripts] sd_iso_cases;
   matrix[Ncondition1,Ntranscripts] sd_iso_controls;
@@ -24,52 +86,61 @@ theta.flat=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=getOptio
   matrix[Ncondition1,Ntranscripts] counts_controls;
   int<lower=0> num_opt_genes;
   int run_ids[num_opt_genes];
-  
+  int<lower=1> gene_to_ds[Ngenes];
+
 } 
-  parameters { 
+  parameters { ")
+  
+  
+  
+  for (i in (1:length(isoform.numbers)))
+    
+    modelString=paste0(modelString,"
+          
+  simplex[",as.integer(names(isoform.numbers)[i]),"] frac_",names(isoform.numbers)[i],"[",isoform.numbers[i],"];
+                      
+  simplex[",as.integer(names(isoform.numbers)[i]),"] alpha_",names(isoform.numbers)[i],"[",isoform.numbers[i],"];                   
+                      
+                      
+                      ")
+  
+  modelString=paste(modelString,"
+  
   vector[Ngenes] beta;
   vector[Ngenes] intercept;
-  vector<lower=0,upper=1>[Ntranscripts] alpha;
-  vector<lower=0,upper=1>[Ntranscripts] frac;
   real<lower=0,upper=1> theta_a;
   real<lower=0,upper=1> theta_b;
   
   }
   model {
+
+  int l;
+  
+  int idx;  
+
   int first_i=1;
+
   int last_i=0;
-  real sum_a;
-  real sum_f;
+
+  ")
+  
+  modelString=paste(modelString,"
   
   for (genes_itr in run_ids[1:num_opt_genes])
   {
-  last_i=first_i+Nisoforms[genes_itr]-1;
+    last_i=first_i+Nisoforms[genes_itr]-1;
+
+    intercept[genes_itr] ~ normal(mean_controls[genes_itr],5);
+
+    target+=log_sum_exp(log(theta_b)+normal_lpdf(beta[genes_itr]|0,5),log(1-theta_b)+normal_lpdf(beta[genes_itr]|0,0.04));
+
+  ")
   
-  sum_a=sum(alpha[first_i:last_i]);
+  for (i in names(isoform.numbers))
+    
+    modelString=paste0(modelString,"if (Nisoforms[genes_itr]==",i,") {",write.block(i),"};\n ")
   
-  sum_f=sum(frac[first_i:last_i]);
-  
-  target+=dirichlet_lpdf(frac[first_i:last_i]/sum_f|rep_vector(1,Nisoforms[genes_itr]));
-  
-  target+=log_sum_exp(log(theta_b)+normal_lpdf(beta[genes_itr]|0,5),log(1-theta_b)+normal_lpdf(beta[genes_itr]|0,0.04));
-  
-  
-  target+=log_sum_exp(log(1-theta_a)+dirichlet_lpdf(alpha[first_i:last_i]/sum_a|rep_vector(100,Nisoforms[genes_itr])),
-  log(theta_a)+dirichlet_lpdf(alpha[first_i:last_i]/sum_a|rep_vector(1,Nisoforms[genes_itr])));
-  
-  
-  intercept[genes_itr] ~ normal(mean_controls[genes_itr],5);
-  
-  for (j in first_i:last_i)
-  {
-  target+=normal_lpdf(counts_controls[,j] | log2(frac[j]/sum_f)+intercept[genes_itr],sd_iso_controls[,j]);
-  
-  target+=normal_lpdf(counts_cases[,j] | log2((frac[j]/sum_f*alpha[j]/sum_a)/dot_product(frac[first_i:last_i]/sum_f,alpha[first_i:last_i]/sum_a))+intercept[genes_itr]+beta[genes_itr],sd_iso_cases[,j]);
-  }
-  
-  first_i=last_i+1;
-  }
-  }"
+  modelString=paste(modelString, "\nfirst_i=last_i+1;\n}\n}")
   
   stan.mod = stan_model( model_code=modelString )
   
@@ -85,17 +156,41 @@ theta.flat=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=getOptio
   
   split.factor=factor(as.character(countsData[,1]),levels=unique(as.character(countsData[,1])))
   
-  init_l=list(theta_a=0.05,
-              theta_b=0.05,
-              frac=array(do.call(c,lapply(lapply(split(tab,split.factor),matrix,ncol=ncol(tab)),function(m)rowSums(2^m)/sum(rowSums(2^m)))),dim=nrow(countsData)),
-              alpha=array(1/unlist(lapply(isoform.count,function(x)rep(x,x))),dim=nrow(countsData)),
+  init_l=list(theta_a=0.5,
+              theta_b=0.5,
               beta=rep(0,nrow(summed.counts)),
               intercept=log2(rowMeans(2^summed.counts[,labels==1]-0.5)+0.5)
   )
   
+  
+  for (i in as.integer(names(isoform.numbers)))
+  {
+    init_l[[length(init_l)+1]]=matrix(rep(1/i,isoform.numbers[as.integer(names(isoform.numbers))==i]*i),ncol=i)
+    
+    names(init_l)[length(init_l)]=paste0('alpha_',i)
+    
+    row.idxs=countsData[,1] %in% rownames(summed.counts)[isoform.count==i]
+    
+    init_l[[length(init_l)+1]]=do.call(rbind,lapply(lapply(split(2^tab[row.idxs,],countsData[row.idxs,1]),matrix,ncol=ncol(tab)),function(m)rowSums(m)/sum(rowSums(m))))
+    
+    names(init_l)[length(init_l)]=paste0('frac_',i)
+    
+  } 
+    
   gene.names=unique(countsData[,1])
   
   g.group=1:nrow(summed.counts)
+  
+  ds.iso.counts=rep(1,max(isoform.numbers))
+  
+  genes.to.ds=c()
+  
+  for (i in 1:nrow(summed.counts))
+  {
+    genes.to.ds=c(genes.to.ds,ds.iso.counts[isoform.count[i]])
+  
+    ds.iso.counts[isoform.count[i]]=ds.iso.counts[isoform.count[i]]+1
+  }
   
   dataList=list(Ncondition1 = sum(labels==1),
                 Ncondition2 = sum(labels==2),
@@ -108,7 +203,8 @@ theta.flat=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=getOptio
                 Ntranscripts=nrow(countsData),
                 Nisoforms=isoform.count,
                 run_ids=g.group,
-                num_opt_genes=length(g.group)
+                num_opt_genes=length(g.group),
+                gene_to_ds=genes.to.ds
   )
   
   stanFit = optimizing( object=stan.mod , data = dataList,init=init_l, iter = opt.iter)
@@ -137,6 +233,8 @@ theta.heirarchical=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
   
+  isoform.numbers=table(table(countsData$V1))
+  
   modelString="data {
   int<lower=0> Ngenes;
   int<lower=0> Ntranscripts;
@@ -152,9 +250,22 @@ theta.heirarchical=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=
   matrix[Ncondition1,Ntranscripts] counts_controls;
   int<lower=0> num_opt_genes;
   int run_ids[num_opt_genes];
+  int<lower=1> gene_to_ds[Ngenes];
   
-} 
-  parameters { 
+}\nparameters {  "
+  
+  for (i in (1:length(isoform.numbers)))
+    
+    modelString=paste0(modelString,"
+                       
+        simplex[",as.integer(names(isoform.numbers)[i]),"] frac_",names(isoform.numbers)[i],"[",isoform.numbers[i],"];
+                       
+        simplex[",as.integer(names(isoform.numbers)[i]),"] alpha_",names(isoform.numbers)[i],"[",isoform.numbers[i],"];                   
+                       
+            ")
+  
+  modelString=paste(modelString,"
+
   vector[Ngenes] beta;
   vector[Ngenes] intercept;
   vector<lower=0,upper=1>[Ntranscripts] alpha;
@@ -163,47 +274,34 @@ theta.heirarchical=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=
   matrix[Ngenes,Ncondition2] expression_cases;
   real<lower=0,upper=1> theta_a;
   real<lower=0,upper=1> theta_b;
-  
+    
   }
   model {
-  int first_i=1;
-  int last_i=0;
-  real sum_a;
-  real sum_f;
+ 
+  int l;
   
+  int idx;  
+
+  int first_i=1;
+
+  int last_i=0;
   
   for (genes_itr in run_ids[1:num_opt_genes])
   {
-  last_i=first_i+Nisoforms[genes_itr]-1;
+      last_i=first_i+Nisoforms[genes_itr]-1;
   
-  sum_a=sum(alpha[first_i:last_i]);
+      target+=log_sum_exp(log(theta_b)+normal_lpdf(beta[genes_itr]|0,5),log(1-theta_b)+normal_lpdf(beta[genes_itr]|0,0.04));
   
-  sum_f=sum(frac[first_i:last_i]);
-  
-  target+=dirichlet_lpdf(frac[first_i:last_i]/sum_f|rep_vector(1,Nisoforms[genes_itr]));
-  
-  target+=log_sum_exp(log(theta_b)+normal_lpdf(beta[genes_itr]|0,5),log(1-theta_b)+normal_lpdf(beta[genes_itr]|0,0.04));
-  
-  target+=log_sum_exp(log(1-theta_a)+dirichlet_lpdf(alpha[first_i:last_i]/sum_a|rep_vector(100,Nisoforms[genes_itr])),
-     log(theta_a)+dirichlet_lpdf(alpha[first_i:last_i]/sum_a|rep_vector(1,Nisoforms[genes_itr])));
+      intercept[genes_itr] ~ normal(mean_controls[genes_itr],5);
+ ")
   
   
-  intercept[genes_itr] ~ normal(mean_controls[genes_itr],5);
   
-  expression_controls[genes_itr,] ~ normal(intercept[genes_itr],sd_exp_controls[genes_itr,]);
+  for (i in names(isoform.numbers))
+    
+    modelString=paste0(modelString,"if (Nisoforms[genes_itr]==",i,") {",write.block2(i),"};\n ")
   
-  expression_cases[genes_itr,] ~ normal(intercept[genes_itr]+beta[genes_itr],sd_exp_cases[genes_itr,]);
-  
-  for (j in first_i:last_i)
-  {
-  target+=normal_lpdf(counts_controls[,j] | log2(frac[j]/sum_f)+expression_controls[genes_itr,],sd_iso_controls[,j]);
-  
-  target+=normal_lpdf(counts_cases[,j] | log2((frac[j]/sum_f*alpha[j]/sum_a)/dot_product(frac[first_i:last_i]/sum_f,alpha[first_i:last_i]/sum_a))+expression_cases[genes_itr,],sd_iso_cases[,j]);
-  }
-  
-  first_i=last_i+1;
-  }
-  }"
+  modelString=paste(modelString, "\nfirst_i=last_i+1;\n}\n}")
   
   stan.mod = stan_model( model_code=modelString )
   
@@ -219,19 +317,42 @@ theta.heirarchical=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=
   
   split.factor=factor(as.character(countsData[,1]),levels=unique(as.character(countsData[,1])))
   
-  init_l=list(theta_a=0.05,
-              theta_b=0.05,
-              frac=array(do.call(c,lapply(lapply(split(tab,split.factor),matrix,ncol=ncol(tab)),function(m)rowSums(2^m)/sum(rowSums(2^m)))),dim=nrow(countsData)),
-              alpha=array(1/unlist(lapply(isoform.count,function(x)rep(x,x))),dim=nrow(countsData)),
+  init_l=list(theta_a=0.5,
+              theta_b=0.5,
               beta=rep(0,nrow(summed.counts)),
               intercept=log2(rowMeans(2^summed.counts[,labels==1]-0.5)+0.5),
               expression_cases=summed.counts[,labels==2],
               expression_controls=summed.counts[,labels==1]
   )
+ 
+  for (i in as.integer(names(isoform.numbers)))
+  {
+    init_l[[length(init_l)+1]]=matrix(rep(1/i,isoform.numbers[as.integer(names(isoform.numbers))==i]*i),ncol=i)
+    
+    names(init_l)[length(init_l)]=paste0('alpha_',i)
+    
+    row.idxs=countsData[,1] %in% rownames(summed.counts)[isoform.count==i]
+    
+    init_l[[length(init_l)+1]]=do.call(rbind,lapply(lapply(split(2^tab[row.idxs,],countsData[row.idxs,1]),matrix,ncol=ncol(tab)),function(m)rowSums(m)/sum(rowSums(m))))
+    
+    names(init_l)[length(init_l)]=paste0('frac_',i)
+    
+  } 
   
   gene.names=unique(countsData[,1])
   
   g.group=1:nrow(summed.counts)
+  
+  ds.iso.counts=rep(1,max(isoform.numbers))
+  
+  genes.to.ds=c()
+  
+  for (i in 1:nrow(summed.counts))
+  {
+    genes.to.ds=c(genes.to.ds,ds.iso.counts[isoform.count[i]])
+    
+    ds.iso.counts[isoform.count[i]]=ds.iso.counts[isoform.count[i]]+1
+  }
   
   dataList=list(Ncondition1 = sum(labels==1),
                 Ncondition2 = sum(labels==2),
@@ -246,7 +367,8 @@ theta.heirarchical=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=
                 Ntranscripts=nrow(countsData),
                 Nisoforms=isoform.count,
                 run_ids=g.group,
-                num_opt_genes=length(g.group)
+                num_opt_genes=length(g.group),
+                gene_to_ds=genes.to.ds
                 
   )
   
