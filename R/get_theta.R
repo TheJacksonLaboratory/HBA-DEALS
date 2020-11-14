@@ -71,7 +71,7 @@ theta.flat=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=getOptio
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
   
-  isoform.numbers=table(table(countsData$V1))
+  isoform.numbers=table(table(countsData[,1]))
   
   modelString=paste0("data {
   int<lower=0> Ngenes;
@@ -233,7 +233,7 @@ theta.heirarchical=function(countsData,labels,opt.iter=30,lib.size=NULL,n.cores=
   iso.data=getvar(countsData[3:ncol(countsData)],design,lib.size)
   gene.data=getvar(summed.counts,design,lib.size)
   
-  isoform.numbers=table(table(countsData$V1))
+  isoform.numbers=table(table(countsData[,1]))
   
   modelString="data {
   int<lower=0> Ngenes;
