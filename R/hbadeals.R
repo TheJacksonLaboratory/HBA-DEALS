@@ -206,7 +206,7 @@ hbadeals.heirarchy=function(countsData,labels,n.cores=getOption("mc.cores", 2L),
 
       next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
 
-      alpha.p[i]=p_rope(as.numeric(mcmcCoda[[1]][,next.alpha.col])-uni.val,range = c(-0.1*uni.val,0.1*uni.val))$p_ROPE
+      alpha.p[i]=p_rope(as.numeric(mcmcCoda[[1]][,next.alpha.col])-uni.val,range = c(-0.2*uni.val,0.2*uni.val))$p_ROPE
     }
   
     frac.2=(frac*alpha)/sum(frac*alpha)
@@ -376,7 +376,7 @@ hbadeals.flat=function(countsData,labels,n.cores=getOption("mc.cores", 2L),isofo
             
             next.alpha.col=which(colnames(mcmcCoda[[1]])==paste0('alpha[',i,']'))
             
-            alpha.p[i]=p_rope(as.numeric(mcmcCoda[[1]][,next.alpha.col])-uni.val,range = c(-0.1*uni.val,0.1*uni.val))$p_ROPE
+            alpha.p[i]=p_rope(as.numeric(mcmcCoda[[1]][,next.alpha.col])-uni.val,range = c(-0.2*uni.val,0.2*uni.val))$p_ROPE
             
         }
         
