@@ -39,19 +39,21 @@ hbadeals(countsData,labels,n.cores,isoform.level,mcmc.iter=3000,mcmc.warmup=4000
   will be made automatically (hierarchy='auto')
 }
 \item{lib.size}{
-  A numeric vector containing total library sizes for each sample. If not provided, the default is  columnwise count totals.
+  A numeric vector containing total library sizes for each sample. If not provided, the default is columnwise count totals.
 }
 \item{mtc}{
-  A logical argument (default FALSE) that indicates whether the output probabolities should be corrected for multiple testing.
+  A logical argument (default FALSE) that indicates whether the output probabilities should be corrected for multiple comparisons.
 }
 
 }
 \value{
 The table returned by this function contains 4 columns.  The first column is the gene name, the second is the transcript name,
-the third is the fold change, and the fourth is 1-probability of differential expression or proportion.  Entries that
+the third is the fold change, and the fourth is 1-probability of differential expression or proportion(splicing).  Entries that
 refer to expression have 'Expression' in their second column.  If isoform.level is FALSE, entries that refer to differential splicing of the gene will have 'Splicing' in their second column entry.  The fold change for expression is given as log2 fold change, and for splicing as fold change.
 }
 \references{
+Karlebach, Guy and Hansen, Peter and Veiga, Diogo Ft and Steinhaus, Robin and Danis, Daniel and Li, Sheng and Anczukow, Olga and Robinson, Peter N., "HBA-DEALS: accurate and simultaneous identification of differential expression and splicing using hierarchical Bayesian analysis", Genome biology, 2020
+
 %% ~put references to the literature/web site here ~
 }
 \author{
@@ -71,7 +73,7 @@ simulate(rseed=1,fc=3,equal = TRUE)
 n.samples=4 #per condition
 countsData=read.table('counts.txt',sep='\t',header=FALSE)
 labels=c(rep(1,n.samples),rep(2,n.samples))
-res=hbadeals(countsData,labels)
+res=hbadeals(countsData,labels,mtc=TRUE)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

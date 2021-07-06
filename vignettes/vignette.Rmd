@@ -41,7 +41,7 @@ countsData=read.table('counts.txt',sep='\t',header=F)
 
 labels=c(rep(1,n.samples),rep(2,n.samples))
 
-res=hbadeals(countsData,labels,parallel::detectCores())
+res=hbadeals(countsData,labels,parallel::detectCores(),mtc=TRUE)
 
 
 This example generates a simulated data set and writes it to the current directory.  It then reads it into the 'countsData' object, and passes it to hbadeals() for differential expression and splicing analysis.  The results table will be returned to the object 'res'.
