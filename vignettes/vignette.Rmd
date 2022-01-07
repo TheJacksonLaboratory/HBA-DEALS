@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## HBA-DEALS
 
-HBA-DEALS is a package for predicting differential alternative splicing and differential expression from transcript counts data.  It takes as input a matrix of transcript counts, where at least two transcripts are associated with each gene, and returns for each gene and transcript the probability of differential expression or differential splicing, respectively. For example, the following output:
+HBA-DEALS is a package for predicting differential alternative splicing and differential expression from transcript counts data.  It takes as input a matrix of transcript counts, where at least two transcripts are associated with each gene, and computes for each gene and transcript the probability of differential expression or differential splicing, respectively. For example, the following output:
 
 Gene  	               Isoform	            ExplogFC/FC           P
 -----                 -----------           -----------           ---
@@ -27,7 +27,7 @@ ENSG00000000457.9	    ENST00000470238.1 	  0.581560485726912	    0.01
 ENSG00000000971.11  	Expression	          -0.0898589323148841	  0.270666666666667
 ENSG00000000971.11	  ENST00000359637.2	    1.74833483085887	    0
 
-means that for a threshold of 0.01 the two genes are not differentially expressed but all of their transcripts are differentially spliced.  The proportion of the last transcript in the table increased ~1.75 fold.  The log-fold change of the second gene is ~0.9 with a negative sign, which means that it is higher in controls (condition 1) than in cases (condition 2).
+means that for a threshold of 0.01 the two genes are not differentially expressed but all of their transcripts are differentially spliced.  The proportion of the last transcript in the table increased ~1.75 fold.  The log-fold change of the second gene is ~0.9 with a negative sign, which means that it is higher in controls (condition 1) than in cases (condition 2).  Note that P is the probability of no effect, that is it is 1 minus the probability of differential expression/splicing.
 Differential expression and splicing probabilities are computed by the function hbadeals().  The package also
 provides a function simulate() which generates a simulated dataset that can be used for testing.
 
