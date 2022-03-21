@@ -1,7 +1,7 @@
 Package: hbadeals
 Type: Package
 Title: Hierarchical Bayesian Analysis of Differential Expression and ALternative SPlicing (HBA-DEALS)
-Version: 0.99.0
+Version: 1.0
 Author: Guy Karlebach and Peter N Robinson
 Maintainer: Guy karlebach <karleg@jax.org>
 Description: HBA-DEALS takes as input a matrix where the first column gives the gene name, the second the
