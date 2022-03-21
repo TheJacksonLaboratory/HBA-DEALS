@@ -31,6 +31,6 @@ This documentation explains how to setup and run HBA-DEALS.
 
    setup
    cohort
-   running
-   output
+   transcriptome
+   hbadeals
 
