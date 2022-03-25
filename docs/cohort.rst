@@ -84,7 +84,8 @@ After you have installed fastp, run the following command in the shell.
         fastp -i tutorial/${srr}_1.fastq -I tutorial/${srr}_2.fastq -o tutorial/${srr}_trimmed_1.fastq -O tutorial/${srr}_trimmed_2.fastq; \
     done
 
-This will create for each .fastq file that was downloaded a file by the same name with an added "_trimmed_" in its name. If you need to save disk space you can delete the original .fastq files.
+This will create for each .fastq file that was downloaded a file by the same name with an added "_trimmed_" in its name. 
+At this point, you can delete the original ``*.fastq`` files if desired.
 
 
 
