@@ -1,0 +1,55 @@
+# Simple workflow for deploying static content to GitHub Pages
+name: Deploy docs to GitHub pages
+
+on:
+  # Runs on pushes targeting the master branch.
+  push:
+    branches: [ master ]
+  # TODO - remove once up and running.
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
+        # TODO - switch to master once running.
+        ref: update_docs
+    
+    - name: Set up Python 3
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install Python dependencies
+      run: |
+        pip3 install sphinx sphinx-rtd-theme 
+
+    - name: Build the documentation
+      run: |
+        ## Init the target folder. 
+        # We will put all site documentation there.
+        mkdir -p gh-pages
+        touch gh-pages/.nojekyll
+        
+        ## Build the docs
+        # Generate the HTML pages and move the generated content into the target folder.
+        printf "Building the documentation\n" 
+        cd docs/
+        make clean html
+        cd ..
+        mv docs/_build/html/* gh-pages
+
+
+    - name: Deploy documentation
+      # TODO - remove once the build was setup.
+      # if: ${{ github.event_name == 'push' }}
+      uses: JamesIves/github-pages-deploy-action@v4.4.1
+      with:
+        folder: gh-pages
+        force: false
