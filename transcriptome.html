@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inferring transcript readcounts &mdash; hbadeals 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/style.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Running HBA-DEALS" href="hbadeals.html" />
+    <link rel="prev" title="Cohort RNA-seq data" href="cohort.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            hbadeals
+          </a>
+              <div class="version">
+                1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up HBA-DEALS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cohort.html">Cohort RNA-seq data</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Inferring transcript readcounts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installing-rsem">Installing rsem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installing-star">Installing STAR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#preparing-the-reference-genome">Preparing the reference genome</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#counting-isoforms">Counting isoforms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="hbadeals.html">Running HBA-DEALS</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">hbadeals</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Inferring transcript readcounts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/transcriptome.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="inferring-transcript-readcounts">
+<span id="rsttranscriptome"></span><h1>Inferring transcript readcounts<a class="headerlink" href="#inferring-transcript-readcounts" title="Permalink to this heading"></a></h1>
+<p>For this tutorial, we will use the  isoform quantification tool
+<a class="reference external" href="https://pubmed.ncbi.nlm.nih.gov/21816040/">RSEM</a> to generate isoform counts.
+A typical run of RSEM consists of just two steps. First, a set of reference transcript
+sequences are generated and preprocessed for use by later RSEM steps. Second, a set of
+RNA-Seq reads are aligned to the reference transcripts and the resulting alignments are
+used to estimate abundances and their credibility intervals.</p>
+<section id="installing-rsem">
+<h2>Installing rsem<a class="headerlink" href="#installing-rsem" title="Permalink to this heading"></a></h2>
+<p>Download the <code class="docutils literal notranslate"><span class="pre">RSEM-1.3.3.tar.gz</span></code> file, uncompress it, and build it.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tar<span class="w"> </span>xfvz<span class="w"> </span>RSEM-1.3.3.tar.gz
+<span class="nb">cd</span><span class="w"> </span>RSEM-1.3.3
+make
+</pre></div>
+</div>
+<p>You can follow this with <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">make</span> <span class="pre">install</span></code>, softlink to the required executables, or add the path of this directory to the path
+when you execute the RSEM commands below. The latter option is as follows.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span>/home/&lt;user&gt;/&lt;somepath&gt;/RSEM-1.3.3/:<span class="nv">$PATH</span>
+</pre></div>
+</div>
+</section>
+<section id="installing-star">
+<h2>Installing STAR<a class="headerlink" href="#installing-star" title="Permalink to this heading"></a></h2>
+<p>RSEM requires <a class="reference external" href="https://pubmed.ncbi.nlm.nih.gov/23104886/">Spliced Transcripts Alignment to a Reference (STAR)</a>
+to be installed and available in the path. STAR can be downloaded from its <a class="reference external" href="https://github.com/alexdobin/STAR">GitHub site</a>.
+For instance, download the statically compiled executable (<code class="docutils literal notranslate"><span class="pre">STAR_Linux_x86_64_static.zip</span></code>), unpack it, and put it in the PATH similarly to the above.</p>
+</section>
+<section id="preparing-the-reference-genome">
+<h2>Preparing the reference genome<a class="headerlink" href="#preparing-the-reference-genome" title="Permalink to this heading"></a></h2>
+<p>First, run the following commands to download and unzip the human genome and gene annotation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_39/GRCh38.p13.genome.fa.gz
+gunzip<span class="w"> </span>GRCh38.p13.genome.fa.gz
+wget<span class="w"> </span>https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_39/gencode.v39.annotation.gtf.gz
+gunzip<span class="w"> </span>gencode.v39.annotation.gtf.gz
+</pre></div>
+</div>
+<p>Create a reference using RSEM by executing the following commands (note that we make a directory for the output of ths RSEM script).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>ref_rsem
+rsem-prepare-reference<span class="w"> </span>--gtf<span class="w"> </span>gencode.v39.annotation.gtf<span class="w"> </span>--num-threads<span class="w"> </span><span class="m">8</span><span class="w"> </span>--star<span class="w"> </span>GRCh38.p13.genome.fa<span class="w"> </span>ref_rsem/ref_rsem
+</pre></div>
+</div>
+<p>Note that the RSEM steps are computationally intensive and would typically be done in a high-performance computing environment rather than
+on a laptop.</p>
+</section>
+<section id="counting-isoforms">
+<h2>Counting isoforms<a class="headerlink" href="#counting-isoforms" title="Permalink to this heading"></a></h2>
+<p>RSEM is a software package for estimating gene and isoform expression levels from RNA-Seq data.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span>srr<span class="w"> </span><span class="k">in</span><span class="w"> </span>SRR7236472<span class="w"> </span>SRR7236473<span class="w"> </span>SRR7236474<span class="w"> </span>SRR7236475<span class="w"> </span>SRR7236480<span class="w"> </span>SRR7236481<span class="w"> </span>SRR7236482<span class="w"> </span>SRR7236483<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span>rsem-calculate-expression<span class="w"> </span>--star<span class="w"> </span>--paired-end<span class="w"> </span>--no-bam-output<span class="w"> </span>--num-threads<span class="w"> </span><span class="m">8</span><span class="w"> </span>tutorial/<span class="si">${</span><span class="nv">srr</span><span class="si">}</span>_trimmed_1.fastq<span class="w"> </span>tutorial/<span class="si">${</span><span class="nv">srr</span><span class="si">}</span>_trimmed_2.fastq<span class="w"> </span>ref_rsem/ref_rsem<span class="w"> </span>rsem/<span class="nv">$srr</span><span class="p">;</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>This will produce outfiles with names such as <code class="docutils literal notranslate"><span class="pre">SRR7236472.isoforms.results</span></code> with the following table structure.
+The HBA-DEALS data ingest script will use this file as input.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>transcript_id</p></th>
+<th class="head"><p>gene_id</p></th>
+<th class="head"><p>length</p></th>
+<th class="head"><p>effective_length</p></th>
+<th class="head"><p>expected_count</p></th>
+<th class="head"><p>TPM</p></th>
+<th class="head"><p>FPKM</p></th>
+<th class="head"><p>IsoPct</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td rowspan="2"><p>ENST00000373020.9</p></td>
+<td rowspan="2"><p>ENSG00000000003.15</p></td>
+<td rowspan="2"><p>3768</p></td>
+<td rowspan="2"><p>3546.60</p></td>
+<td rowspan="2"><p>1265.04</p></td>
+<td rowspan="2"><p>26.44</p></td>
+<td rowspan="2"><p>20.76</p></td>
+<td rowspan="2"><p>77.37</p></td>
+</tr>
+<tr class="row-odd"></tr>
+<tr class="row-even"><td rowspan="2"><p>ENST00000494424.1</p></td>
+<td rowspan="2"><p>ENSG00000000003.15</p></td>
+<td rowspan="2"><p>820</p></td>
+<td rowspan="2"><p>598.61</p></td>
+<td rowspan="2"><p>0.00</p></td>
+<td rowspan="2"><p>0.00</p></td>
+<td rowspan="2"><p>0.00</p></td>
+<td rowspan="2"><p>0.00</p></td>
+</tr>
+<tr class="row-odd"></tr>
+<tr class="row-even"><td rowspan="2"><p>ENST00000496771.5</p></td>
+<td rowspan="2"><p>ENSG00000000003.15</p></td>
+<td rowspan="2"><p>1025</p></td>
+<td rowspan="2"><p>803.60</p></td>
+<td rowspan="2"><p>20.42</p></td>
+<td rowspan="2"><p>1.88</p></td>
+<td rowspan="2"><p>1.48</p></td>
+<td rowspan="2"><p>5.51</p></td>
+</tr>
+<tr class="row-odd"></tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cohort.html" class="btn btn-neutral float-left" title="Cohort RNA-seq data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hbadeals.html" class="btn btn-neutral float-right" title="Running HBA-DEALS" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

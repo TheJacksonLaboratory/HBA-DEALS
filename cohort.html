@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cohort RNA-seq data &mdash; hbadeals 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/style.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Inferring transcript readcounts" href="transcriptome.html" />
+    <link rel="prev" title="Setting up HBA-DEALS" href="setup.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            hbadeals
+          </a>
+              <div class="version">
+                1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setting up HBA-DEALS</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cohort RNA-seq data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-from-sra">Downloading from SRA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cleaning-the-reads">Cleaning the reads</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="transcriptome.html">Inferring transcript readcounts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hbadeals.html">Running HBA-DEALS</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">hbadeals</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Cohort RNA-seq data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/cohort.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="cohort-rna-seq-data">
+<span id="rstcohort"></span><h1>Cohort RNA-seq data<a class="headerlink" href="#cohort-rna-seq-data" title="Permalink to this heading"></a></h1>
+<p>HBA-DEALS is designed for the analysis of RNA-seq cohort data. The nature of
+the cohorts is arbitrary but will commonly be labeled as cases and controls or group 1 vs. group2.</p>
+<p>In general, there are many ways to obtain such data including generating RNA-seq data or downloading it from an appropriate site.
+For this tutorial, we download a dataset from the <a class="reference external" href="https://www.ncbi.nlm.nih.gov/sra">NCBI Sequence Read Archive (SRA)</a>,
+which is the primary archive of NGS datasets.</p>
+<section id="downloading-from-sra">
+<h2>Downloading from SRA<a class="headerlink" href="#downloading-from-sra" title="Permalink to this heading"></a></h2>
+<p>We will use the <a class="reference external" href="https://hpc.nih.gov/apps/sratoolkit.html">SRA Toolkit</a>.</p>
+<p>We will use 8 RNA-seq samples from the dataset  <a class="reference external" href="https://trace.ncbi.nlm.nih.gov/Traces/sra/?study=SRP149366">SRP149366</a>,
+which investigated estrogen responsive transcriptome of estrogen receptor positive normal human breast cells in 3D cultures.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>control</p></th>
+<th class="head"><p>estradiol</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>SRR7236472
+SRR7236473
+SRR7236474
+SRR7236475</p></td>
+<td><p>SRR7236480
+SRR7236481
+SRR7236482
+SRR7236483</p></td>
+</tr>
+</tbody>
+</table>
+<p>First install <code class="docutils literal notranslate"><span class="pre">fasterq-dump</span></code> on your system accorrding to the SRA toolkit instructions. The <a class="reference external" href="https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software">download page</a>
+may be helpful.</p>
+<p>Then execute the following command from
+the shell.</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Downloading RNA-seq files with the SRA Toolkit</span><a class="headerlink" href="#id1" title="Permalink to this code"></a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="w"> </span><span class="k">for</span><span class="w"> </span>srr<span class="w"> </span><span class="k">in</span><span class="w"> </span>SRR7236472<span class="w"> </span>SRR7236473<span class="w"> </span>SRR7236474<span class="w"> </span>SRR7236475<span class="w"> </span>SRR7236480<span class="w"> </span>SRR7236481<span class="w"> </span>SRR7236482<span class="w"> </span>SRR7236483<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>prefetch<span class="w"> </span><span class="nv">$srr</span>
+<span class="w">     </span>fasterq-dump<span class="w"> </span>-t<span class="w"> </span>tmp/<span class="w"> </span>--split-files<span class="w"> </span>--threads<span class="w"> </span><span class="m">8</span><span class="w"> </span>--outdir<span class="w"> </span>tutorial/<span class="w"> </span><span class="nv">$srr</span>
+<span class="w"> </span><span class="k">done</span>
+</pre></div>
+</div>
+</div>
+<p>If necessary, change the <code class="docutils literal notranslate"><span class="pre">--threads</span></code> argument according to the resources of your system.
+The downloaded <code class="docutils literal notranslate"><span class="pre">*.fastq</span></code> files will be written to the <code class="docutils literal notranslate"><span class="pre">tutorial</span></code> directory.
+Other directories that were created (e.g., <code class="docutils literal notranslate"><span class="pre">SRR7236472</span></code>, which contains the file <code class="docutils literal notranslate"><span class="pre">SRR7236472.sra</span></code>) can be deleted.</p>
+<p>This step will typically take a few hours.</p>
+</section>
+<section id="cleaning-the-reads">
+<h2>Cleaning the reads<a class="headerlink" href="#cleaning-the-reads" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://academic.oup.com/bioinformatics/article/34/17/i884/5093234">fastp</a> performs
+quality control, adapter trimming, quality filtering, per-read quality pruning and many other
+operations with a single scan of the FASTQ data.</p>
+<p>fastp can be downloaded at its <a class="reference external" href="https://github.com/OpenGene/fastp">GitHub site</a>, which also has installation
+instructions for various platforms. If you have a debian or Ubuntu system, then the easiest installation is just</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>fastp
+</pre></div>
+</div>
+<p>After you have installed fastp, run the following command in the shell.</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Cleaning FASTQ files with fastp</span><a class="headerlink" href="#id2" title="Permalink to this code"></a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="w"> </span><span class="k">for</span><span class="w"> </span>srr<span class="w"> </span><span class="k">in</span><span class="w"> </span>SRR7236472<span class="w"> </span>SRR7236473<span class="w"> </span>SRR7236474<span class="w"> </span>SRR7236475<span class="w"> </span>SRR7236480<span class="w"> </span>SRR7236481<span class="w"> </span>SRR7236482<span class="w"> </span>SRR7236483<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>fastp<span class="w"> </span>-i<span class="w"> </span>tutorial/<span class="si">${</span><span class="nv">srr</span><span class="si">}</span>_1.fastq<span class="w"> </span>-I<span class="w"> </span>tutorial/<span class="si">${</span><span class="nv">srr</span><span class="si">}</span>_2.fastq<span class="w"> </span>-o<span class="w"> </span>tutorial/<span class="si">${</span><span class="nv">srr</span><span class="si">}</span>_trimmed_1.fastq<span class="w"> </span>-O<span class="w"> </span>tutorial/<span class="si">${</span><span class="nv">srr</span><span class="si">}</span>_trimmed_2.fastq<span class="p">;</span><span class="w"> </span><span class="se">\</span>
+<span class="w"> </span><span class="k">done</span>
+</pre></div>
+</div>
+</div>
+<p>This will create for each .fastq file that was downloaded a file by the same name with an added “_trimmed_” in its name.
+At this point, you can delete the original <code class="docutils literal notranslate"><span class="pre">*.fastq</span></code> files if desired.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="setup.html" class="btn btn-neutral float-left" title="Setting up HBA-DEALS" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="transcriptome.html" class="btn btn-neutral float-right" title="Inferring transcript readcounts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
